@@ -47,7 +47,11 @@ def exercise3(image_folder="."):
     image = cv2.imread(join(image_folder, "Lena_512x512.png"))
     mask = cv2.imread(join(image_folder, "Maske_Lena_512x512.png"))
 
-    # TODO: Ihre Lösung
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+
+            if not mask[y, x].any():
+                image[y, x] = (0, 0, 0) 
 
     cv2.imshow("Ex. 3)", image)
     cv2.waitKey(0)
