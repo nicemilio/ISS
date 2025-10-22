@@ -20,6 +20,7 @@ def exercise2a(a: int, k: int, image_folder="."):
             # Zurück in int umwandeln
             image[y, x] = (np.uint8(b), np.uint8(g), np.uint8(r))
 
+    # Bild anzeigen
     cv2.imshow("Ex. 2a float", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
