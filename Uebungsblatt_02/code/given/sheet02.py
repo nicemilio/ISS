@@ -16,8 +16,7 @@ def exercise1(image_folder=".", resize_factor=6):
     # apply gamma correction
     gamma_corrected = image.copy()
 
-    # TODO: Ihre Lösung
-    # ...
+    gamma_corrected = np.array (255 * (image / 255) ** gamma, dtype=np.uint8)
 
     image_out = cv2.resize(src=gamma_corrected, dsize=(
         gamma_corrected.shape[1]//resize_factor, gamma_corrected.shape[0]//resize_factor))
