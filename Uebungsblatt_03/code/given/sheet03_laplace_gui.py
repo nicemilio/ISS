@@ -12,7 +12,7 @@ def on_change(_=None):
 
 def run_gui(img_path: str | Path):
     
-    # TODO: load data, apply operator with initial value
+    gray = load_image_grayscale(img_path).astype("float32") / 255.0
 
     cv2.namedWindow("Laplace Viewer", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("variant (0:L4, 1:L8)", "Laplace Viewer", 0, 1, on_change)
@@ -24,11 +24,14 @@ def run_gui(img_path: str | Path):
         v_idx = cv2.getTrackbarPos("variant (0:L4, 1:L8)", "Laplace Viewer")
         c_idx = cv2.getTrackbarPos("connectivity (0:4, 1:8)", "Laplace Viewer")
         eps_scale = cv2.getTrackbarPos("epsilon x1e-6", "Laplace Viewer")
+        variant = VARIANTS[v_idx]
         eps = float(eps_scale) * 1e-6
         connectivity = 4 if c_idx == 0 else 8
 
-        # TODO: Ihre Lösung
-        vis = None
+        edges = laplace_edges(gray, variant=variant, connectivity=connectivity, eps=eps)
+
+        
+        vis = edges
 
         cv2.imshow("Laplace Viewer", vis)
         k = cv2.waitKey(20) & 0xFF
