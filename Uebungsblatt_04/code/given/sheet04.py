@@ -5,10 +5,16 @@ from os.path import *
 
 def median_filter(img: np.ndarray, mask: int = 3) -> np.ndarray:
 
-     # TODO: Ihre Lösung
-     # ...
-     filtered_image = None
-     return filtered_image
+    if mask is None or mask < 1 or mask % 2 == 0:
+        mask = 3
+    if img.ndim == 2:
+        return cv2.medianBlur(img, mask)
+    elif img.ndim == 3:
+        channels = cv2.split(img)
+        filtered = [cv2.medianBlur(ch, mask) for ch in channels]
+        return cv2.merge(filtered)
+    else:
+        return img
 
 def diffusion_filter(
     i: np.ndarray,
@@ -36,8 +42,8 @@ def exercise1(image_folder="."):
         return
 
 
-    mask = None # TODO: Ihre Lösung
-    mask_2 = None # TODO: Ihre Lösung
+    mask = 3 
+    mask_2 = 5 
 
     out_img = median_filter(image, mask=mask)
     out_img_2 = median_filter(image_2, mask=mask_2)
@@ -91,7 +97,7 @@ def exercise3(image_folder="."):
 
 
 if __name__ == "__main__":
-    source_images = "/Sheet04/code/given"
+    source_images = "."
 
     # ------------------
     # --- EXERCISE 1 ---
