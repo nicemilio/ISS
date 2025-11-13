@@ -21,14 +21,38 @@ def diffusion_filter(
     eps0: float = 1.0,
     iters: int = 500,
     lambda_: float = 1) -> np.ndarray:
-    # TODO: Ihre Lösung
-    # ...
+
+    # A
+    I = i.astype(np.float32)
+    Ix = np.zeros_like(I)
+    Iy = np.zeros_like(I)
+    Ix[:, :-1] = I[:, 1:] - I[:, :-1]   # ∂I/∂x
+    Iy[:-1, :] = I[1:, :] - I[:-1, :]   # ∂I/∂y
+
+    grad_mag = np.sqrt(Ix**2 + Iy**2)
+
+    #B
+    # Isotroper inhomogener Diffusionstensor (Skalarfunktion)
+    D = 1.0 / (1.0 + (grad_mag / eps0)**2)
+
+    # Flussvektor j = -D * ∇I
+    jx = -D * Ix
+    jy = -D * Iy
+
     return i
 
 def lin_scaling(img_diff: np.ndarray, img_median: np.ndarray) -> np.ndarray:
-    # TODO: Ihre Lösung
-    # ...
-    lin_scaled_image = None
+    # Differenz bilden (Median - Diffusion)
+    diff = img_median.astype(np.float32) - img_diff.astype(np.float32)
+
+    # Minimum und Maximum bestimmen
+    mn, mx = diff.min(), diff.max()
+
+    # Lineare Streckung auf den Bereich [0, 255]
+    if mx == mn:
+        return np.zeros_like(diff, dtype=np.uint8)
+
+    lin_scaled_image = ((diff - mn) / (mx - mn) * 255.0).astype(np.uint8)
     return lin_scaled_image
 
 
