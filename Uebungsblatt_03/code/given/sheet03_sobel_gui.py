@@ -28,14 +28,14 @@ def run_gui(img_path: str | Path):
     magnitude_u8 = linear_stretch_to_u8(magnitude)
 
     # === Convert orientation from radians to degrees [0,180) ===
-    theta_deg = (np.degrees(orientation) + 180.0) % 180.0
-    orientation_bins = orientation_to_bin(theta_deg)
-    orientation_rgb = render_orientation_bins(orientation_bins)
+    theta_deg = (np.degrees(orientation) + 180.0) % 180.0 # Berechne Winkel in Grad und mappe auf [0,180)
+    orientation_bins = orientation_to_bin(theta_deg) # In 4 Bins einteilen
+    orientation_rgb = render_orientation_bins(orientation_bins) # RGB-Darstellung der Bins
 
     # === Setup window and controls ===
     cv2.namedWindow("Sobel Viewer", cv2.WINDOW_NORMAL)
-    cv2.createTrackbar("mode (0:mag, 1:ori, 2:both)", "Sobel Viewer", 0, 2, on_change)
-    cv2.createTrackbar("threshold", "Sobel Viewer", 0, 255, on_change)
+    cv2.createTrackbar("mode (0:mag, 1:ori, 2:both)", "Sobel Viewer", 0, 2, on_change) # Modus-Auswahl
+    cv2.createTrackbar("threshold", "Sobel Viewer", 0, 255, on_change) # Schwellwert für Maskierung
 
     while True:
         mode_idx = cv2.getTrackbarPos("mode (0:mag, 1:ori, 2:both)", "Sobel Viewer")
@@ -43,19 +43,19 @@ def run_gui(img_path: str | Path):
         mode = MODES[mode_idx]
 
         # === Visualization modes ===
-        if mode == "magnitude":
-            vis = cv2.cvtColor(magnitude_u8, cv2.COLOR_GRAY2BGR)
-            vis = mask_by_threshold(vis, magnitude_u8, thr)
+        if mode == "magnitude": # Nur Betrag anzeigen
+            vis = cv2.cvtColor(magnitude_u8, cv2.COLOR_GRAY2BGR) # Graustufen zu BGR konvertieren
+            vis = mask_by_threshold(vis, magnitude_u8, thr) #   Nach Schwellwert maskieren
 
-        elif mode == "orientation":
-            vis = mask_by_threshold(orientation_rgb, magnitude_u8, thr)
+        elif mode == "orientation": # Nur Orientierung anzeigen
+            vis = mask_by_threshold(orientation_rgb, magnitude_u8, thr) # Nach Schwellwert maskieren
 
-        elif mode == "both":
-            vis = apply_magnitude_brightness(orientation_rgb, magnitude_u8)
-            vis = mask_by_threshold(vis, magnitude_u8, thr)
+        elif mode == "both": # Beide kombiniert anzeigen
+            vis = apply_magnitude_brightness(orientation_rgb, magnitude_u8) # Helligkeit nach Betrag anpassen
+            vis = mask_by_threshold(vis, magnitude_u8, thr) # Nach Schwellwert maskieren
 
         else:
-            vis = cv2.cvtColor(magnitude_u8, cv2.COLOR_GRAY2BGR)
+            vis = cv2.cvtColor(magnitude_u8, cv2.COLOR_GRAY2BGR) # Graustufen zu BGR konvertieren
 
         cv2.imshow("Sobel Viewer", vis)
 
