@@ -22,24 +22,41 @@ def diffusion_filter(
     iters: int = 500,
     lambda_: float = 1) -> np.ndarray:
 
-    # A
+    # Sicherstellen, dass wir in float32 und [0,1] arbeiten
     I = i.astype(np.float32)
-    Ix = np.zeros_like(I)
-    Iy = np.zeros_like(I)
-    Ix[:, :-1] = I[:, 1:] - I[:, :-1]   # ∂I/∂x
-    Iy[:-1, :] = I[1:, :] - I[:-1, :]   # ∂I/∂y
+    if I.max() > 1.0:
+        I = I / 255.0
 
-    grad_mag = np.sqrt(Ix**2 + Iy**2)
+    for _ in range(max(1, int(iters))):
+        # A) Gradienten (Vorwärtsdifferenzen)
+        Ix = np.zeros_like(I, dtype=np.float32)
+        Iy = np.zeros_like(I, dtype=np.float32)
+        Ix[:, :-1] = I[:, 1:] - I[:, :-1]   # ∂I/∂x
+        Iy[:-1, :] = I[1:, :] - I[:-1, :]   # ∂I/∂y
 
-    #B
-    # Isotroper inhomogener Diffusionstensor (Skalarfunktion)
-    D = 1.0 / (1.0 + (grad_mag / eps0)**2)
+        grad_mag = np.sqrt(Ix ** 2 + Iy ** 2)
 
-    # Flussvektor j = -D * ∇I
-    jx = -D * Ix
-    jy = -D * Iy
+        # B) Isotroper inhomogener Diffusionstensor D(|∇I|)
+        D = 1.0 / (1.0 + (grad_mag / float(eps0)) ** 2)
 
-    return i
+        # Fluss j = -D ∇I
+        jx = -D * Ix
+        jy = -D * Iy
+
+        # C) Gradienten des Flusses -> D) Divergenz
+        div = np.zeros_like(I, dtype=np.float32)
+        # ∂jx/∂x (Rückwärtsdifferenzen)
+        div[:, 1:] += jx[:, 1:] - jx[:, :-1]
+        # ∂jy/∂y (Rückwärtsdifferenzen)
+        div[1:, :] += jy[1:, :] - jy[:-1, :]
+
+        # E) Update
+        I = I - float(lambda_) * div
+        # Wertebereich stabilisieren
+        I = np.clip(I, 0.0, 1.0)
+
+    # Ausgabe als 8-bit Bild für OpenCV Anzeige/Speichern
+    return (I * 255.0).astype(np.uint8)
 
 def lin_scaling(img_diff: np.ndarray, img_median: np.ndarray) -> np.ndarray:
     # Differenz bilden (Median - Diffusion)
@@ -85,17 +102,83 @@ def exercise1(image_folder="."):
 
 
 def exercise2(image_folder="."):
-    try:
-        image = cv2.imread(join(image_folder, "Testbild_Rauschen_640x480.png"), cv2.IMREAD_GRAYSCALE)
-    except FileNotFoundError:
+    candidates = []
+    candidates.append(join(image_folder, "Testbild Rauschen 640x480.png"))
+    candidates.append(join(image_folder, "Testbild_Rauschen_640x480.png"))
+
+    image = None
+    for p in candidates:
+        if exists(p):
+            image = cv2.imread(p, cv2.IMREAD_GRAYSCALE)
+            if image is not None:
+                break
+    if image is None:
+        print("Fehler beim Laden des Bildes. Bitte Pfad und Dateinamen prüfen.")
+        return
+
+    src = np.asarray(image, dtype=np.float32) / 255.0
+    win = "Ex. 2) Rauschen"
+    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+
+    # Startwerte: eps0=1.0 -> 100, iters=500, lambda=0.1 -> 100
+    cv2.createTrackbar("eps0 x100", win, 100, 2000, lambda v: None)
+    cv2.createTrackbar("iters", win, 500, 1000, lambda v: None)
+    cv2.createTrackbar("lambda x1000", win, 100, 1000, lambda v: None)
+
+    # Initiale Berechnung und Anzeige
+    e = cv2.getTrackbarPos("eps0 x100", win)
+    it = cv2.getTrackbarPos("iters", win)
+    l = cv2.getTrackbarPos("lambda x1000", win)
+    eps0 = max(1, e) / 100.0
+    iters = max(1, it)
+    lambda_ = max(1, l) / 1000.0
+    out = diffusion_filter(i=src, eps0=eps0, iters=iters, lambda_=lambda_)
+    cv2.imshow(win, out)
+
+    last_vals = (e, it, l)
+    while True:
+        e = cv2.getTrackbarPos("eps0 x100", win)
+        it = cv2.getTrackbarPos("iters", win)
+        l = cv2.getTrackbarPos("lambda x1000", win)
+        if (e, it, l) != last_vals:
+            eps0 = max(1, e) / 100.0
+            iters = max(1, it)
+            lambda_ = max(1, l) / 1000.0
+            out = diffusion_filter(i=src, eps0=eps0, iters=iters, lambda_=lambda_)
+            cv2.imshow(win, out)
+            last_vals = (e, it, l)
+
+        key = cv2.waitKey(50) & 0xFF
+        if key in (27, ord('q')):
+            cv2.imwrite("ex2_rauschen.png", out)
+            break
+        if key in (ord('s'),):
+            cv2.imwrite("ex2_rauschen.png", out)
+
+    cv2.destroyAllWindows()
+
+def exercise2_run(image_folder=".", eps0: float = 1.0, iters: int = 500, lambda_: float = 0.1, filename: str = None):
+    # Funktion nicht mehr verwendet; beibehalten, falls benötigt
+    candidates = []
+    if filename is not None:
+        candidates.append(join(image_folder, filename))
+    candidates.append(join(image_folder, "Testbild Rauschen 640x480.png"))
+    candidates.append(join(image_folder, "Testbild_Rauschen_640x480.png"))
+
+    image = None
+    for p in candidates:
+        if exists(p):
+            image = cv2.imread(p, cv2.IMREAD_GRAYSCALE)
+            if image is not None:
+                break
+    if image is None:
         print("Fehler beim Laden des Bildes. Bitte Pfad und Dateinamen prüfen.")
         return
     img_arr = np.asarray(image, dtype=np.float32) / 255.0
-    out_img = diffusion_filter(i=img_arr, eps0=1.0, iters=500, lambda_=1)
+    out_img = diffusion_filter(i=img_arr, eps0=float(eps0), iters=int(iters), lambda_=float(lambda_))
     cv2.imshow("Ex. 2) Rauschen", out_img)
     cv2.waitKey(0)
-    saved_1 = cv2.imwrite("ex2_rauschen_.png", out_img)
-    print("Gespeichert:", saved_1)
+    cv2.imwrite("ex2_rauschen.png", out_img)
     cv2.destroyAllWindows()
 
 
@@ -120,14 +203,15 @@ def exercise3(image_folder="."):
     cv2.destroyAllWindows()
 
 
+
 if __name__ == "__main__":
-    source_images = "."
+    source_images = dirname(__file__)
 
     # ------------------
     # --- EXERCISE 1 ---
     # ------------------
 
-    exercise1(image_folder=source_images)
+    # exercise1(image_folder=source_images)
 
     # ------------------
     # --- EXERCISE 2 ---
@@ -139,4 +223,4 @@ if __name__ == "__main__":
     # --- EXERCISE 3 ---
     # ------------------
 
-    exercise3(image_folder=source_images)
+    # exercise3(image_folder=source_images)
