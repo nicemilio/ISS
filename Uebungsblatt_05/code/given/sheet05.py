@@ -82,10 +82,83 @@ def exercise1(image_folder=".", input: str = None):
 
 
 def connected_component_labeling(source: np.ndarray, neighborhood: int = 8):
-
-    # Todo: Ihre Lösung
-
-    return None
+    if source is None:
+        return None
+    img = source
+    if img.ndim == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    h, w = img.shape
+    labels = np.zeros((h, w), dtype=np.int32)
+    parent = [0]
+    def uf_find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    def uf_union(a, b):
+        ra, rb = uf_find(a), uf_find(b)
+        if ra != rb:
+            if ra < rb:
+                parent[rb] = ra
+            else:
+                parent[ra] = rb
+    next_label = 1
+    if neighborhood == 8:
+        neigh = [(-1, -1), (-1, 0), (-1, 1), (0, -1)]
+    else:
+        neigh = [(-1, 0), (0, -1)]
+    for y in range(h):
+        for x in range(w):
+            if img[y, x] == 0:
+                neighbor_labels = []
+                for dy, dx in neigh:
+                    yy, xx = y + dy, x + dx
+                    if 0 <= yy < h and 0 <= xx < w:
+                        lab = labels[yy, xx]
+                        if lab != 0:
+                            neighbor_labels.append(lab)
+                if neighbor_labels:
+                    m = int(min(neighbor_labels))
+                    labels[y, x] = m
+                    for lab in neighbor_labels:
+                        while len(parent) <= max(m, lab):
+                            parent.append(len(parent))
+                        if parent[m] == 0:
+                            parent[m] = m
+                        if parent[lab] == 0:
+                            parent[lab] = lab
+                        uf_union(m, lab)
+                else:
+                    labels[y, x] = next_label
+                    while len(parent) <= next_label:
+                        parent.append(len(parent))
+                    parent[next_label] = next_label
+                    next_label += 1
+    flat = {}
+    cur = 1
+    for y in range(h):
+        for x in range(w):
+            lab = labels[y, x]
+            if lab != 0:
+                root = uf_find(lab)
+                if root not in flat:
+                    flat[root] = cur
+                    cur += 1
+                labels[y, x] = flat[root]
+    num_labels = cur - 1
+    if num_labels <= 0:
+        color = np.full((h, w, 3), 255, dtype=np.uint8)
+        return color
+    hsv = np.zeros((num_labels + 1, 1, 3), dtype=np.uint8)
+    for k in range(1, num_labels + 1):
+        hsv[k, 0, 0] = np.uint8((k * 179) // max(1, num_labels))
+        hsv[k, 0, 1] = 255
+        hsv[k, 0, 2] = 200
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    out = np.full((h, w, 3), 255, dtype=np.uint8)
+    mask_fg = labels > 0
+    out[mask_fg] = rgb[labels[mask_fg], 0]
+    return out
 
 
 def exercise3(image_folder=".", threshold: np.uint8=120):
@@ -128,7 +201,7 @@ if __name__ == "__main__":
     # --- EXERCISE 3 ---
     # ------------------
 
-    # exercise3(image_folder=image_folder, threshold=args.threshold)
+    exercise3(image_folder=image_folder, threshold=args.threshold)
 
 
 
