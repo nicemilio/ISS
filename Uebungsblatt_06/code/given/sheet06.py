@@ -7,9 +7,7 @@ import math
 import numpy as np
 
 
-# ------------------------------------------------------------
 # Hilfsfunktionen
-# ------------------------------------------------------------
 
 def compute_gradient_magnitude(img):
     """Berechnet Gradientenbetrag (Sobel) + speichert Visualisierung."""
@@ -119,9 +117,7 @@ def mask_from_paths(shape, paths):
     return mask
 
 
-# ------------------------------------------------------------
 # GUI – Mouse Callback
-# ------------------------------------------------------------
 
 click_points = []      # speichert gesetzte Punkte
 paths = []             # speichert alle Pfade
@@ -159,9 +155,7 @@ def mouse_callback(event, x, y, flags, param):
         img_display_global = draw_path(img_display_global, path, color=(0,255,0))
 
 
-# ------------------------------------------------------------
-# Hauptfunktion gemäß Aufgabenstellung
-# ------------------------------------------------------------
+# Hauptfunktion
 
 def exercise1(image_folder=".", input: str = None):
     global grad_global, img_color_global, img_display_global
@@ -196,34 +190,13 @@ def exercise1(image_folder=".", input: str = None):
 
     cv2.destroyAllWindows()
 
-    # ---------------------
-    # Speichern der Ergebnisse
-    # ---------------------
-
-    # erstes Segment extra speichern
-    if paths:
-        first = paths[0]
-        cv2.imwrite("initial_path.png", draw_path(img_color, first))
-
     # Overlay aller Pfade
     overlay = img_color.copy()
     for p in paths:
         overlay = draw_path(overlay, p, color=(0,255,0))
     cv2.imwrite("is_overlay.png", overlay)
 
-    # Maske
-    mask = mask_from_paths(img_gray.shape, paths)
-    cv2.imwrite("is_mask.png", mask)
-
-    print("Gespeicherte Dateien:")
-    print(" - grad_magnitude.png")
-    print(" - initial_path.png")
-    print(" - is_overlay.png")
-    print(" - is_mask.png")
     print("Fertig.")
-
-    # Todo Ihre Lösung
-    #  Achten sie darauf, den Dijkstra Algorithmus wie in der Vorlesung beschrieben (Folien 38ff.) zu implementieren.
     
 def show_image(title, image, info_text=None):
     """
@@ -250,7 +223,7 @@ def show_image(title, image, info_text=None):
     print(f"'{window_title}' wird angezeigt. Drücke eine beliebige Taste im Bildfenster, um fortzufahren...")
     cv2.waitKey(0) # Warte unendlich lange auf eine Taste
 
-# --- Canny-Algorithmus Schritte (AKTUALISIERT mit Parametern) ---
+# --- Canny-Algorithmus Schritte ---
 
 def apply_gaussian(image, kernel_size=(5, 5), sigma=0):
     """Schritt 1: Rauschunterdrückung mit Gauß-Filter"""
@@ -274,7 +247,7 @@ def apply_canny_final(image, low_threshold=100, high_threshold=200):
     """
     return cv2.Canny(image, low_threshold, high_threshold)
 
-# --- Hauptfunktion (AKTUALISIERT mit Parameter-Übergabe) ---
+# --- Hauptfunktion ---
 
 def exercise3(image_folder="."):
     try:
@@ -308,7 +281,7 @@ def exercise3(image_folder="."):
         info_str_2 = f"Sobel Kernel Size={sobel_ksize}"
         show_image("Schritt 2: Gradienten-Magnitude (Sobel)", gradient_magnitude, info_text=info_str_2)
 
-        # --- Schritt 3 & 4: NMS + Hysterese (Das 'echte' Canny-Ergebnis) ---
+        # --- Schritt 3 & 4: NMS + Hysterese ---
         # Definiere die Schwellenwerte (t1 und t2)
         t_low = 100  # t1
         t_high = 200 # t2
