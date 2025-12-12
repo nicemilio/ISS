@@ -140,21 +140,55 @@ def compute_gradient_magnitude_orientation(image, keypoints, sigma=1.6):
 
 def compute_sift_descriptors(magnitudes, orientations, keypoints):
     """
-    Compute SIFT descriptors from gradient information
+    Compute simplified SIFT descriptors from gradient information
+    (4x4 sample window, 2 regions: upper/lower, 8 orientation bins)
 
     Args:
-        magnitudes: Gradient magnitudes around keypoints
-        orientations: Gradient orientations around keypoints
-        keypoints: Keypoint coordinates
+        magnitudes: List of 4x4 numpy arrays with gradient magnitudes per keypoint
+        orientations: List of 4x4 numpy arrays with gradient orientations (in degrees) per keypoint
+        keypoints: List of keypoint coordinates [(x, y), ...]
 
     Returns:
-        descriptors: List of 128-dimensional SIFT descriptors (numpy arrays)
+        descriptors: List of numpy arrays (16-dimensional, 2 regions x 8 orientations)
     """
     descriptors = []
+    num_bins = 8
+    bin_width = 360 / num_bins  # 45 degrees per bin
 
-    #TODO: SIFT Descriptors berechnen
+    for idx, kp in enumerate(keypoints):
+        mag = magnitudes[idx]
+        orient = orientations[idx]
+
+        # Sicherstellen, dass mag und orient 4x4 sind
+        mag = np.array(mag, dtype=np.float32)
+        orient = np.array(orient, dtype=np.float32)
+        if mag.shape != (4, 4) or orient.shape != (4, 4):
+            raise ValueError("Magnitudes and orientations must be 4x4 arrays per keypoint")
+
+        descriptor = np.zeros(num_bins * 2, dtype=np.float32)  # 2 regions x 8 bins
+
+        # Obere Region (erste 2 Reihen)
+        for i in range(2):
+            for j in range(4):
+                angle = orient[i, j] % 360
+                bin_idx = int(angle // bin_width)
+                descriptor[bin_idx] += mag[i, j]
+
+        # Untere Region (letzte 2 Reihen)
+        for i in range(2, 4):
+            for j in range(4):
+                angle = orient[i, j] % 360
+                bin_idx = int(angle // bin_width)
+                descriptor[num_bins + bin_idx] += mag[i, j]
+
+        # Normalisierung des Deskriptors auf Betrag 1 (optional)
+        norm = np.linalg.norm(descriptor)
+        if norm > 0:
+            descriptor /= norm
+
+        descriptors.append(descriptor)
+
     print(f"Anzahl Keypoints für Descriptors: {len(keypoints)}")
-
     return descriptors
 
 
@@ -163,19 +197,33 @@ def find_correspondences(descriptors1, descriptors2, keypoints1, keypoints2):
     Find corresponding keypoints using minimum Euclidean distance
 
     Args:
-        descriptors1: SIFT descriptors from image 1
-        descriptors2: SIFT descriptors from image 2
-        keypoints1: Keypoints from image 1
-        keypoints2: Keypoints from image 2
+        descriptors1: List of SIFT descriptors from image 1 (numpy arrays)
+        descriptors2: List of SIFT descriptors from image 2 (numpy arrays)
+        keypoints1: Keypoints from image 1 [(x, y), ...]
+        keypoints2: Keypoints from image 2 [(x, y), ...]
 
     Returns:
         matches: List of matched keypoint pairs [(kp1_idx, kp2_idx, distance), ...]
     """
     matches = []
 
-    #TODO: Korrespondenzfindung implementieren
+    if len(descriptors1) == 0 or len(descriptors2) == 0:
+        print("Keine Deskriptoren vorhanden!")
+        return matches
 
+    descriptors1 = np.array(descriptors1)
+    descriptors2 = np.array(descriptors2)
+
+    for i, desc1 in enumerate(descriptors1):
+        # Berechne euklidische Distanzen zu allen Deskriptoren in Bild 2
+        distances = np.linalg.norm(descriptors2 - desc1, axis=1)
+        # Finde Index des minimalen Abstands
+        j = np.argmin(distances)
+        matches.append((i, j, distances[j]))
+
+    print(f"Gefundene Korrespondenzen: {len(matches)}")
     return matches
+
 
 
 def visualize_correspondences(image1, image2, keypoints1, keypoints2, matches):
@@ -185,7 +233,7 @@ def visualize_correspondences(image1, image2, keypoints1, keypoints2, matches):
     Args:
         image1, image2: Input images
         keypoints1, keypoints2: Keypoint coordinates
-        matches: List of matched pairs
+        matches: List of matched pairs [(kp1_idx, kp2_idx, distance), ...]
 
     Returns:
         result_image1, result_image2: Images with colored correspondences
@@ -201,11 +249,27 @@ def visualize_correspondences(image1, image2, keypoints1, keypoints2, matches):
     else:
         result_image2 = image2.copy()
 
-    #TODO: Korrespondenz-Visualisierung implementieren
+    # Zufällige Farben für jedes Match
+    np.random.seed(69)
+    colors = [tuple(np.random.randint(0, 256, 3).tolist()) for _ in range(len(matches))]
+
+    for idx, (i1, i2, dist) in enumerate(matches):
+        color = colors[idx]
+
+        x1, y1 = keypoints1[i1]
+        x2, y2 = keypoints2[i2]
+
+        # 3x3 Quadrat um Keypoint färben, mit boundary check
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if 0 <= y1+dy < result_image1.shape[0] and 0 <= x1+dx < result_image1.shape[1]:
+                    result_image1[y1+dy, x1+dx] = color
+                if 0 <= y2+dy < result_image2.shape[0] and 0 <= x2+dx < result_image2.shape[1]:
+                    result_image2[y2+dy, x2+dx] = color
 
     print(f"Anzahl zu visualisierende Matches: {len(matches)}")
-
     return result_image1, result_image2
+
 
 
 def load_image(image_path, grayscale=True):
