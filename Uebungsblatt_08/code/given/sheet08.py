@@ -119,22 +119,58 @@ def visualize_corners(image, corners):
 def compute_gradient_magnitude_orientation(image, keypoints, sigma=1.6):
     """
     Compute gradient magnitude and orientation around keypoints
+    (4x4 sample window, without Gaussian weighting)
 
     Args:
-        image: Input grayscale image
+        image: Input grayscale image (numpy array)
         keypoints: List of keypoint coordinates [(x, y), ...]
-        sigma: Standard deviation for Gaussian weighting
+        sigma: Standard deviation for Gaussian weighting (ignored in this simplified version)
 
     Returns:
-        magnitudes: Gradient magnitudes for each keypoint region
-        orientations: Gradient orientations for each keypoint region
+        magnitudes: List of 4x4 numpy arrays of gradient magnitudes per keypoint
+        orientations: List of 4x4 numpy arrays of gradient orientations (in degrees) per keypoint
     """
     magnitudes = []
     orientations = []
 
-    #TODO: Gradient Magnitude und Orientation berechnen
-    print(f"Anzahl Keypoints: {len(keypoints)}, Sigma: {sigma}")
+    img = image.astype(np.float32)
+    H, W = img.shape
 
+    # Sobel-Kernel für Gradienten
+    dx_kernel = np.array([[-1, 0, 1],
+                          [-2, 0, 2],
+                          [-1, 0, 1]], dtype=np.float32)
+    dy_kernel = np.array([[-1, -2, -1],
+                          [ 0,  0,  0],
+                          [ 1,  2,  1]], dtype=np.float32)
+
+    # Berechne Gradienten für das ganze Bild
+    grad_x = cv2.filter2D(img, -1, dx_kernel)
+    grad_y = cv2.filter2D(img, -1, dy_kernel)
+
+    for (x, y) in keypoints:
+        # 4x4 Sample um den Keypoint, zentriert
+        x0, y0 = x - 2, y - 2  # obere linke Ecke des 4x4 Fensters
+        x1, y1 = x + 2, y + 2  # exklusive untere rechte Ecke
+        # Boundary check
+        if x0 < 0 or y0 < 0 or x1 > W or y1 > H:
+            # Wenn Keypoint zu nah am Rand, einfach 4x4 Fenster verschieben oder skippen
+            magnitudes.append(np.zeros((4, 4), dtype=np.float32))
+            orientations.append(np.zeros((4, 4), dtype=np.float32))
+            continue
+
+        gx = grad_x[y0:y1, x0:x1]
+        gy = grad_y[y0:y1, x0:x1]
+
+        # Gradient magnitude
+        mag = np.sqrt(gx**2 + gy**2)
+        # Gradient orientation in Grad, 0-360
+        orient = (np.degrees(np.arctan2(gy, gx)) + 360) % 360
+
+        magnitudes.append(mag)
+        orientations.append(orient)
+
+    print(f"Anzahl Keypoints: {len(keypoints)}, Sigma: {sigma}")
     return magnitudes, orientations
 
 
